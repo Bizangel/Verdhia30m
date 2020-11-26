@@ -1,0 +1,336 @@
+<krpano>
+	
+	<style name="text"
+	       type="text"
+	       background="false"
+	       css="color:#FFFFFF;"
+	       enabled="false"
+	       />
+		   
+	<action name="print">
+		showlog();
+		trace(" ",%1);
+	</action>
+	
+	<action name="check_navigation" if="1">
+		screentosphere(mouse.x, mouse.y, mouse_hlookat, mouse_vlookat);
+		mod(mouse_hlookat,360);
+		if(mouse_hlookat LT 0,
+			add(mouse_hlookat,360));
+		
+		copy(v, global.view);
+			for(set(i,0), i LT style.count, inc(i),
+				indexoftxt(is_movable_hotspot, get(style[get(i)].name), 'scene_');
+				
+				if(is_movable_hotspot == 0,
+					copy(hs, style[get(i)]);
+					copy(x,hs.ox);
+					copy(y,hs.oy);
+					copy(z,hs.oz);
+					
+					sub(xlength,x,v.tx);
+					sub(zlength,z,v.tz);
+					
+					Math.atan2(hg,xlength,zlength);
+					mul(hg,180);
+					div(hg,Math.pi);
+					if(hg LT 0,
+						add(hg,360));
+					
+					calc(distance,sqrt(pow(xlength,2)+pow(zlength,2)));
+					sub(height,get(y),v.ty);
+					
+					Math.atan2(vg,height,distance);
+					
+					mul(vg,180);
+					div(vg,Math.pi);
+					
+					<!-- Check if close to mouse click -->
+					calc(angle_hdiff, abs(hg - mouse_hlookat));
+					calc(angle_vdiff, abs(vg - mouse_vlookat));
+					
+					if(image.angle_tolerance === null,
+						set(angle_tolerance,30);
+						,
+						copy(angle_tolerance,image.angle_tolerance);
+					);
+					if(image.vangle_tolerance === null,
+						set(vangle_tolerance,30);
+						,
+						copy(vangle_tolerance,image.vangle_tolerance);
+					);
+					
+					
+					if(angle_hdiff LE angle_tolerance AND angle_vdiff LE vangle_tolerance AND distance LE 800 AND distance GT 0,
+						
+						indexoftxt(is_allowed,get(image.allowed),get(hs.name));
+						<!-- WILDCARD 'ANY!' 
+							indexoftxt(is_allowed,get(image.allowed),'scene');
+						-->
+						indexoftxt(wildcard,get(image.allowed),'ANY!');
+						
+						if(wildcard != -1,
+							set(is_allowed,1); <!-- Allowed -->
+						);
+						if(is_allowed != -1,
+							if (winner !== null,
+								if(distance LE winnerdistance,
+									copy(winnerdistance,distance);
+									copy(winner,hs);
+								);
+								,
+								copy(winnerdistance,distance);
+								copy(winner,hs);
+							);
+						);
+					);
+				);
+				
+				
+				
+			);
+			if (winner !== null,
+				
+				if(xml.scene != winner.linkedscene,
+					tour_loadscene(get(winner.linkedscene));
+				);
+				<!--
+				tween(view.tx|view.ty|view.tz, calc(image.ox + '|' + image.oy + '|' + image.oz), calc(winnerdistance*0.005), default);
+				-->
+				,
+				<!-- If no winner attempt to move and fail -->
+				
+			);
+			delete(winner);
+			delete(winnerdistance);
+			
+			
+	</action>
+	
+	<action name="tour_loadscene" scope="local" args="scenename">
+	if(xml.scene != scenename,		
+
+			<!-- get scene n, to update mapspot -->
+			indexoftxt(i,get(scenename),'_');
+			inc(i);
+			calc(scene_n,slice(get(scenename),i,scenename.length)); 
+			
+			<!-- Based on scene number, update mapspot -->
+			calc('spotlayername', 'spot' + scene_n);
+			
+			copy(state,layer[variableHolder].state);
+			
+			calc(to_load, 'scene_' + scene_n + '_' + state);
+			
+			<!-- Load and tween !-->
+			loadscene(get(to_load),null,MERGE|KEEPMOVING,BLEND(0.5));		
+			tween(view.tx|view.ty|view.tz, calc(image.ox + '|' + image.oy + '|' + image.oz), 2.0, default);
+			
+			
+			set(layer[radar].parent, get(spotlayername));
+			if(webvr.isenabled == false,set(layer[map].visible,"true");
+	);
+		
+		
+		
+		<!-- delete_golden_array(); -->
+		
+		
+		copy(scenename,xml.scene);
+		indexoftxt(i,get(scenename),'_');
+		inc(i);
+		calc(scene_n,slice(get(scenename),i,scenename.length)); 
+	);
+	</action>
+	
+	<action name="floorspot_onclick" scope="local">
+		
+		if(xml.scene != caller.linkedscene,
+			tour_loadscene(get(caller.linkedscene));
+		);
+	</action>
+	
+	<action name="generate_floorspots" autorun="onstart" scope="local">
+		set(floorheight, 160.0);
+		for(set(i,0), i LT style.count, inc(i),
+			if (style[get(i)].autohotspot == true,
+				copy(st, style[get(i)]);
+				addhotspot(calc('hotspot_' + (i+1)), hs);
+				hs.loadstyle(floorspot);
+				copy(hs.tx, st.ox);
+				copy(hs.tz, st.oz);
+				calc(hs.ty, floorheight + 1.0*st.oy - 1.0);
+				copy(hs.linkedscene, st.linkedscene);
+			);
+		);
+	</action>
+	
+	<style name="floorspot" keep="true" type="text"
+		css="font-size:20px;text-align:center;" vcenter="true"
+		width="200" height="200" scale="0.15"
+		bgroundedge="100" bgborder="2 0x000000 1" bgshadow="0 0 5 0xFFFFFF 1.0"
+		oversampling="2" mipmapping="true" zorder="1"
+		distorted="true" depth="0" depthbuffer="true"
+		torigin="world" rotationorder="xyz" rx="-90"
+		xalpha="0"
+		alpha="0.3"
+		onover.addevent="tween(scale,0.16); tween(alpha,0.6);"
+		onout.addevent="tween(scale,0.15); tween(alpha,0.3);"
+		onclick="floorspot_onclick();"
+		enabled="false"
+		visible="false"
+		/>
+	
+	<style name="visual_floorspot" keep="true" type="text"
+		css="font-size:20px;text-align:center;" vcenter="true"
+		width="200" height="200" scale="0.15"
+		bgroundedge="100" bgborder="2 0x000000 1" bgshadow="0 0 5 0xFFFFFF 1.0"
+		oversampling="2" mipmapping="true" zorder="1"
+		distorted="true" depth="0" depthbuffer="true"
+		torigin="image" rotationorder="xyz" rx="-90"
+		xalpha="0"
+		alpha="0.3"
+		onover.addevent="tween(scale,0.16); tween(alpha,0.6);"
+		onout.addevent="tween(scale,0.15); tween(alpha,0.3);"
+		onclick="floorspot_onclick();"
+		enabled="true"
+		visible="true"
+		/>
+	
+	<events name="orientation" keep="true" onresize="Orientation();"  />
+	
+	<action name="Orientation">
+	if(device.handheld == true,
+		if(stagewidth LT stageheight,
+				<!-- PORTRAIT -->
+				if(stagewidth LE 1010,
+					calc(fix_scale_value,stagewidth/1010);
+					roundval(fix_scale_value,2)
+					mul(fix_scale_value,.6);
+					set(layer[infoslide3].scale,get(fix_scale_value));
+					set(layer[infoslide2].scale,get(fix_scale_value));
+					set(layer[infoslide1].scale,get(fix_scale_value));
+					,
+					set(layer[infoslide1].scale,1);
+					set(layer[infoslide2].scale,1);
+					set(layer[infoslide3].scale,1);
+				);
+				
+				set(layer[map].scale,0.11);
+				set(layer[Map_Toggle].y,20%);
+				,
+				
+				<!-- LANDSCAPE -->
+				<!-- width and height IS updated. -->
+				if(stageheight LE 630,
+					calc(fix_scale_value,stageheight/630);
+					roundval(fix_scale_value,2);
+					mul(fix_scale_value,.6);
+					set(layer[infoslide3].scale,get(fix_scale_value));
+					set(layer[infoslide2].scale,get(fix_scale_value));
+					set(layer[infoslide1].scale,get(fix_scale_value));
+					,
+					set(layer[infoslide1].scale,1);
+					set(layer[infoslide2].scale,1);
+					set(layer[infoslide3].scale,1);
+				);
+				
+				set(layer[map].scale,0.07);
+				set(layer[Map_Toggle].y,5%);
+		);
+	);
+	</action>
+	
+	<action name="smart_reload_current_scene" scope="local">
+		copy(scenename, xml.scene);
+		indexoftxt(i,get(scenename),'_');
+		indexoftxt(i2,get(scenename),'_',calc(i+1));
+		inc(i);
+		calc(scene_n,slice(get(scenename),i,i2)); 
+		
+		tour_loadscene(calc('scene_' + scene_n));
+	</action>
+	
+	<action name="tweenlookat" scope="local" args="hlookat,vlookat">
+		lookto(get(hlookat),get(vlookat),120,smooth(250,120,100));
+	</action>
+	
+	<action name="change_state" scope="local" args="amuebnot">
+		set(layer[variableHolder].state,get(amuebnot));
+		smart_reload_current_scene();
+	</action>
+	
+	
+	<action name="mapspot_onclick" scope="local">
+		tour_loadscene(get(caller.linkedscene));
+	</action>
+	<!-- MAP IMPLEMENTATION -->
+	<layer name="map" y = "16%" x="50" url="map.png" keep="true" handcursor="false" capture="false" align="leftbottom" scale="0.3" scale.mobile="0.3" scalechildren="true" bgcapture="true"/>
+	<style name="mapspot" keep="true" url="bluedot.png" parent="map" align="lefttop" edge="center" scale.mobile="1.5"
+	onclick="mapspot_onclick();"/>
+	
+	<layer name="spot1" style="mapspot" x="889" y="726" zorder="1" linkedscene="scene_1"/>
+	<layer name="spot2" style="mapspot" x="626" y="750" zorder="1" linkedscene="scene_2"/>
+	<layer name="spot3" style="mapspot" x="821" y="390" zorder="1" linkedscene="scene_3"/>
+	<layer name="spot4" style="mapspot" x="305" y="400" zorder="1" linkedscene="scene_4"/>
+	<layer name="spot5" style="mapspot" x="337" y="799" zorder="1" linkedscene="scene_5"/>
+	
+	<!-- Set radar default -->
+	<action name="autoset_radar_onstart" scope="local" autorun="onstart">
+		set(layer[radar].parent, spot1);
+	</action>
+	
+	<layer name="radar" keep = "true" url.flash="%SWFPATH%/plugins/radar.swf" url.html5="%SWFPATH%/plugins/radar.js" align="center" zorder="1" scale.mobile="2" fillalpha="0.5" scale="1"
+ fillcolor="0x7F5F3F" linewidth="1.0" linecolor="0xE0E0A0" linealpha="0.5" editmode="true" />
+	
+	
+	<layer name="Map_Toggle" type="image" keep="true" url="%VIEWER%/icons/mapoff.png" scale="0.05" align="leftbottom" x="50" y="50" onclick="toggle_map();"
+	alpha="1" enabled="true"/>
+	
+	<action name="toggle_map" scope="local">
+		if(layer[map].alpha == 1,
+			disablemap();
+		);
+		
+		if(layer[map].alpha == 0,
+			enablemap();
+		);
+	</action>
+	
+	<action name="enablemap" scope="local">
+		tween(layer[map].alpha,1);
+		set(layer[map].enabled,true);
+		
+		set(layer[Map_Toggle].url,%VIEWER%/icons/mapon.png);
+	</action>
+	
+	<action name="disablemap" scope="local">
+		tween(layer[map].alpha,0);
+		set(layer[map].enabled,false);
+		
+		
+		set(layer[Map_Toggle].url,%VIEWER%/icons/mapoff.png);
+	</action>
+	
+	<action name="mobile_map_exceptions" scope="local" autorun="onstart">
+		if(device.handheld == true,
+			disablemap(); <!-- disable on start -->
+			set(layer[Map_Toggle].x,4%);
+			set(layer[Map_Toggle].y,20%);
+			
+			set(layer[map].align,center);
+			set(layer[map].y,-15%);
+			set(layer[map].x,0);
+			,
+			enablemap(); <!-- enable on start -->
+		);
+		
+		
+	</action>
+	
+	
+	
+	
+	
+	
+</krpano>

@@ -1,0 +1,636 @@
+<krpano>
+	<!-- MOBILE EXCEPTIONS pref run first-->
+	<action name="VUHO_OVERLAY_ONSTART" autorun="onstart" >
+		if(device.handheld == true,
+			disablemap();
+			set(layer[OverlayMenu].scale, 0.12);
+			easy_rescale(map);
+			
+			set(layer[map].align,center);
+			set(layer[map].y,-5%);
+			set(layer[map].x,0);
+			
+			onresize_action();
+		);
+		
+		removelayer(webvr_enterbutton); <!-- Remove EnterVR button attop -->
+		toggle_overlay_menu(); <!-- enable overlay at start -->
+	</action>
+	
+	<action name="extend_animation" scope="local" args="onoff, layername, anim_speed, callback">
+		<!-- 
+		HOW IT WORKS
+		- - - - - - - - - 
+		Takes cropbox, and smoothly creates an extending animation receives point to be cutted where closed or extended
+		(            |       )
+					 ^  cutpoint
+		all displayed when extended, all closed when when cutted
+		LAYER MUST HAVE VARIABLE CALLED "EXTENDSTATE" that take values {'extended', 'reduced'}
+		AND VARIABLE CALLED "CROPPOINT", that represents current "line" to be cropped
+		
+		HOW TO USE
+		- - - - - - - - - 
+		MANUALLY SET REALHEIGHT, REALWIDTH VARIABLES ON LAYER, BASED ON IMAGE SIZE AND CUTPOINT, WHERE TO CUT IT
+		sample: <layer name="overlay" realheight="1200" realwidth="200">
+		
+		
+		THESE VARIABLES WILL BE USED, KEEP IN MIND TO AVOID CONFLICTS: REALWIDTH, REALHEIGHT, CUTPOINT, CROPPOINT, EXTENDSTATE
+		
+		ANIMATION GOES FROM RIGHT TO LEFT, you can reuse this code, mirrorying the image and applying the rotation attribute
+		-->
+		if(onoff == 'off',
+			<!-- disable overlay -->
+			if(get(layer[get(layername)].extendstate) == 'extended',
+				<!-- do actual loop -->
+				setinterval(calc(layername + 'id'),0,
+					copy(cutpoint, layer[get(layername)].cutpoint);
+					copy(realwidth, layer[get(layername)].realwidth);
+					copy(realheight, layer[get(layername)].realheight);
+					
+					
+					<!-- update croppoint -->
+					copy(croppoint,layer[get(layername)].croppoint);
+					inc(croppoint,get(anim_speed)); <!-- Adjust Speed -->
+					set(layer[get(layername)].croppoint,get(croppoint));
+					
+					<!-- update actual crop -->
+					calc(cropwidth,realwidth - croppoint);
+					calc(cropvalue, croppoint + '|0|' + cropwidth +  '|' + realheight);
+					set(layer[get(layername)].crop,get(cropvalue));
+					
+					<!-- End check -->
+					if(croppoint GE cutpoint,
+						clearinterval(calc(layername + 'id'));
+						set(layer[get(layername)].croppoint,get(cutpoint));
+						<!-- reupdate crop -->
+						calc(cropwidth,realwidth - cutpoint);
+						calc(cropvalue, cutpoint + '|0|' + cropwidth +  '|' + realheight);
+						set(layer[get(layername)].crop,get(cropvalue));
+						
+						<!-- set as extended -->
+						set(layer[get(layername)].extendstate, reduced);
+						
+						if(callback !== null,
+							callwith(layer[OverlayMenu],get(callback));
+						);
+					);
+				);
+			);
+			,
+			<!-- enable overlay -->
+			if(get(layer[get(layername)].extendstate) == 'reduced',
+				<!-- SUPPOSE REALWIDTH AND REALHEIGHT ARE SET -->;
+				<!-- do actual loop -->
+				setinterval(calc(layername + 'id'),0,
+					copy(cutpoint, layer[get(layername)].cutpoint);
+					copy(realwidth, layer[get(layername)].realwidth);
+					copy(realheight, layer[get(layername)].realheight);
+					
+					
+					<!-- update croppoint -->
+					copy(croppoint,layer[get(layername)].croppoint);
+					dec(croppoint,get(anim_speed)); <!-- Adjust Speed -->
+					set(layer[get(layername)].croppoint,get(croppoint));
+					
+					<!-- update actual crop -->
+					calc(cropwidth,realwidth - croppoint);
+					calc(cropvalue, croppoint + '|0|' + cropwidth +  '|' + realheight);
+					set(layer[get(layername)].crop,get(cropvalue));
+					
+					<!-- End check -->
+					if(croppoint LE 0,
+						clearinterval(calc(layername + 'id'));
+						set(layer[get(layername)].croppoint,get(0));
+						<!-- reupdate crop -->
+						calc(cropwidth,realwidth - 0);
+						calc(cropvalue, 0 + '|0|' + cropwidth +  '|' + realheight);
+						set(layer[get(layername)].crop,get(cropvalue));
+						
+						<!-- set as extended -->
+						set(layer[get(layername)].extendstate, extended);
+						if(callback !== null,
+							callwith(layer[OverlayMenu],get(callback));
+						);
+					);
+				);
+			);
+		);
+	</action>
+	
+	<action name="on_overlay_close" scope="local"> <!-- called when overlay FULLY closes (animation stops) -->
+		disable_overlay_icons();
+		set(layer[OverlayMenu].url,%ROOT%/icons/menuoff.png);
+	</action>
+	
+	<action name="on_overlay_open" scope="local"> <!-- called when overlay FULLY opens (animation stops) -->
+		enable_overlay_icons();
+	</action>
+	
+	<action name="toggle_overlay_menu" scope="local">
+		if(layer[OverlayMenu].extendstate == 'reduced',
+			extend_animation(on,OverlayMenu, 160,on_overlay_open);
+			set(layer[OverlayMenu].url,%ROOT%/icons/menuon.png);
+			set(layer[overlay_close_hitbox].width,22%);
+			,
+			extend_animation(off,OverlayMenu, 160, on_overlay_close);
+			set(layer[OverlayMenu].maskchildren,true);
+			set(layer[overlay_close_hitbox].width,100%);
+
+		);
+	</action>
+	
+	<style name="text"
+	       type="text"
+	       background="false"
+	       css="color:#FFFFFF;"
+	       enabled="false"
+	       />
+	
+	
+	<!-- Actual overlay -->
+	<layer name="OverlayMenu" keep="true" type="image" url="%ROOT%/icons/menuoff.png" handcursor="true" align="rightbottom" scale="0.3" x="50" y="50" scalechildren="true"
+	realwidth="1705" realheight="384" extendstate="reduced" cutpoint="1321" croppoint="1321" crop="1321|0|384|384"
+	maskchildren="true"> <!-- all the cropping info is above, also based on FULL UNALTERED PNG IMAGE SOURCE -->
+		<layer name="overlay_close_hitbox" type="container" onclick="toggle_overlay_menu();" align="righttop" x="0%" y="0%" width="100%" height="100%" bgcolor="0x000000" bgalpha="0" bgcapture="true"/>
+		
+		<layer name="fullscreen_icon" type="image" url="%ROOT%/icons/fullscreen_off.png" align="righttop" x="500" y="70" alpha="1" enabled="true" onclick="switch(fullscreen);toggle_fullscreen_icon();" active="false" tooltip="Pantalla Completa"
+		onover="toggle_fullscreen_icon_hover_in();do_tooltip();"
+		onout="toggle_fullscreen_icon_hover_out();do_tooltip_out();"/>
+		
+		<layer name="entervr_icon" type="image" url="%ROOT%/icons/vroff.png" align="righttop" x="900" y="70" alpha="1" enabled="true" onclick="show_webvr_warning();"
+		onover="set(layer[entervr_icon].url,%ROOT%/icons/vron.png);do_tooltip();"
+		onout="set(layer[entervr_icon].url,%ROOT%/icons/vroff.png);do_tooltip_out();"
+		tooltip="Realidad Virtual"/>		
+		
+		<layer name="information_icon" type="image" url="%ROOT%/icons/infooff.png" align="righttop" x="1300" y ="70" alpha="1" enabled="true" scale="0.7"
+		onover="set(layer[information_icon].url,%ROOT%/icons/infoon.png);do_tooltip();"
+		onout="set(layer[information_icon].url,%ROOT%/icons/infooff.png);do_tooltip_out();"
+		onclick="toggle_info();"
+		tooltip="Información"/>
+	</layer>
+	
+	<action name="enable_overlay_icons" scope="local">
+		tween(layer[fullscreen_icon].alpha,1,.1); set(layer[fullscreen_icon].enabled,true);
+		tween(layer[entervr_icon].alpha,1,.1); set(layer[entervr_icon].enabled,true);
+	</action>
+	
+	<action name="disable_overlay_icons" scope="local">
+		tween(layer[fullscreen_icon].alpha,0,.1); set(layer[fullscreen_icon].enabled,false);
+		tween(layer[entervr_icon].alpha,0,.1); set(layer[entervr_icon].enabled,false);
+	</action>
+	
+	<layer name="overlay_tooltip" keep="true"
+	       type="text"
+	       parent="OverlayMenu"
+	       visible="false" alpha="0"
+	       enabled="false"
+	       align="rightbottom"
+	       edge="bottom"
+	       oy="-2"
+	       background="false" backgroundcolor="0xFFFFFF" backgroundalpha="1.0"
+	       border="false" bordercolor="0x000000" borderalpha="1.0"
+	       borderwidth="1.0" roundedge="0"
+	       shadow="0.0" shadowrange="4.0" shadowangle="45" shadowcolor="0x000000" shadowalpha="1.0"
+	       textshadow="1" textshadowrange="6.0" textshadowangle="90" textshadowcolor="0x000000" textshadowalpha="1.0"
+	       css="text-align:center; color:#FFFFFF; font-family:Arial; font-weight:bold; font-size:28px;"
+	       html="test"
+		   hovering="false"
+		   x="35%"
+		   y="125%"
+	       />
+		   
+	<action name="do_tooltip" scope="local">
+		set(layer[OverlayMenu].maskchildren,false);
+		
+		copy(layer[overlay_tooltip].html, caller.tooltip);
+	    set(layer[overlay_tooltip].visible, true);
+	    tween(layer[overlay_tooltip].alpha, 1.0, 0.5);
+		
+		calc(layer[overlay_tooltip].x,caller.x + 300);
+
+	</action>
+	
+	<action name="do_tooltip_out" scope="local">
+		tween(layer[overlay_tooltip].alpha, 0.0, 0.25, default, set(layer[overlay_tooltip].visible,false));
+		
+		
+		copy(cropval,layer[extend_menu].crop);		
+		indexoftxt(i,get(cropval),'|');
+		calc(copy_x,slice(get(cropval),0,i));
+		
+		<!-- if retracted -->
+		if( layer[OverlayMenu].extendstate == 'reduced',
+			set(layer[OverlayMenu].maskchildren,true);
+		);
+	</action>
+	
+	
+	<action name="toggle_fullscreen_icon" scope="local">
+		if( layer[fullscreen_icon].active == true,
+			set(layer[fullscreen_icon].url,%ROOT%/icons/fullscreen_off.png);
+			set(layer[fullscreen_icon].active,false);
+			,
+			set(layer[fullscreen_icon].url,%ROOT%/icons/fullscreen_on.png);
+			set(layer[fullscreen_icon].active,true);
+		);
+	</action>
+
+	<action name="toggle_fullscreen_icon_hover_out" scope="local">
+		if( layer[fullscreen_icon].active == true,
+			set(layer[fullscreen_icon].url,%ROOT%/icons/fullscreen_on.png);
+			,
+			set(layer[fullscreen_icon].url,%ROOT%/icons/fullscreen_off.png);
+		);
+	</action>
+	
+	<action name="toggle_fullscreen_icon_hover_in" scope="local">
+		if( layer[fullscreen_icon].active == true,
+			set(layer[fullscreen_icon].url,%ROOT%/icons/fullscreen_off.png);
+			,
+			set(layer[fullscreen_icon].url,%ROOT%/icons/fullscreen_on.png);
+			
+		);
+	</action>
+	
+	
+	<style name="custom_webvr_button" type="text" css="text-align:center; font-size:20px;" padding="4 0" mergedalpha="false" bgborder="0 0xFFFFFF 1" bgroundedge="1" bgshadow="0 1 4 0x000000 1.0" ondown="set(bgcolor, 0xDDDDDD);" onup="set(bgcolor, 0xFFFFFF);" bgcapture="true"/>
+	
+	<action name="close_webvr_warning">
+		tween(layer[webvr_warning].alpha,0);
+		set(layer[webvr_warning].enabled,false);
+		
+	</action>
+	
+	<action name="show_webvr_warning">
+		tween(layer[webvr_warning].alpha,1);
+		set(layer[webvr_warning].enabled,true);
+	</action>
+	
+	<layer name="webvr_warning" type="container" align="center" x="0" y="0" width="300" height="300" bgcolor="0x333333" bgalpha="0.7" bgcapture="true" keep="true" scalechildren="true" handcursor="false" alpha="0" enabled="false">
+		<layer name="webvr_warning_title" style="text" align="top" y="5" width="100%" css="text-align:center; color:#FFFFFF; font-family:Arial; font-weight:bold; font-size:14px;" html="Confirmación" handcursor="false"/>
+		<layer name="textarea" type="container" align="lefttop" x="10" y="30" width="280" height="260" bgcolor="0xFFFFFF" bgalpha="1.0" maskchildren="true" handcursor="false">
+			<layer name="text" style="text" enabled="true" align="lefttop" x="0" y="0" width="100%" autoheight="true" css="text-align:left; color:#000000; font-family:Arial; font-size:26px;" html="data:VRWarning" handcursor="false"/>
+			
+			<layer name="confirm_button" style="custom_webvr_button" html="¡Sí, Deseo Entrar!" width="50%" x="0" height="20%" y="80%"
+			onclick="webvr.enterVR();close_webvr_warning();"/>
+			
+			
+			<layer name="close_button_webvr" style="custom_webvr_button" html="¡No, Gracias!" width="50%" x="50%" height="20%" y="80%"
+			onclick="close_webvr_warning();"/>
+		
+		</layer>
+	</layer>
+	
+	
+	<data name="VRWarning">
+		Estás a punto de entrar en una experiencia Immersiva de Realidad Virtual,
+		¿Estás seguro que quieres entrar?
+	</data>	
+	
+	<layer name="map_toggle" type="image" keep="true" url="%VIEWER%/icons/mapicon.png" scale="0.05" align="leftbottom" x="50" y="50" onclick="toggle_map();"
+	alpha="1" enabled="true" devices="mobile"/>
+	
+	<action name="toggle_map" scope="local">
+		if(layer[map].alpha == 1,
+			disablemap();
+		);
+		
+		if(layer[map].alpha == 0,
+			enablemap();
+		);
+	</action>
+	
+	<action name="enablemap" scope="local">
+		tween(layer[map].alpha,1);
+		set(layer[map].enabled,true);
+	</action>
+	
+	<action name="disablemap" scope="local">
+		tween(layer[map].alpha,0);
+		set(layer[map].enabled,false);
+	</action>
+	
+	<!--
+	<layer name="infoslide1" type="image" url="infoslide1.png" keep="true" align="centered" scale="0.6" alpha="0" enabled="false"
+	maskchildren="true" scalechildren="true" handcursor="false" zorder="3">
+		
+		<layer name="Close_Button" type="image" url="%VIEWER%/icons/closeoff.png"
+		onover="set(layer[Close_Button].url,%VIEWER%/icons/closeon.png)"
+		onout="set(layer[Close_Button].url,%VIEWER%/icons/closeoff.png)"
+		onclick="remove_infoslides();set(layer[Close_Button].url,%VIEWER%/icons/closeoff.png);"
+		parent="infoslide1" 
+		align="righttop"
+		x="5%" y="5%" scale="0.5"/>
+	</layer>
+	
+	
+	<action name="toggle_info" scope="local">
+		if(layer[infoslide1].enabled == true,
+			remove_infoslides();
+			,
+			force_infodisplay(1);
+		);
+	</action>
+	
+	<action name="force_infodisplay" scope="local" args="infoslidenumber">
+		calc(infovar,'infoslide' + infoslidenumber);
+		tween(layer[get(infovar)].alpha,1);
+		set(layer[get(infovar)].enabled,true);
+		set(layer[get(infovar)].displayed,true);
+	</action>
+	
+	<action name="remove_infoslides" scope="local">
+		tween(layer[infoslide1].alpha,0);set(layer[infoslide1].enabled,false);
+	</action>
+	-->
+	
+		<action name="toggle_info" scope="local">
+		if(layer[infoslide1].enabled == true OR layer[infoslide2].enabled == true OR layer[infoslide3].enabled == true,
+			remove_slides_images();
+			,
+			force_infodisplay(1);
+		);
+	</action>
+	
+	<action name="remove_slides_images" scope="local">
+		tween(layer[infoslide1].alpha,0);set(layer[infoslide1].enabled,false);
+		tween(layer[infoslide2].alpha,0);set(layer[infoslide2].enabled,false);
+		tween(layer[infoslide3].alpha,0);set(layer[infoslide3].enabled,false);
+	</action>
+	
+	<action name="infodisplay" scope="local" args="infoslidenumber">
+		calc(infovar,'infoslide' + infoslidenumber);
+		if(layer[get(infovar)].displayed === null,
+			
+			tween(layer[get(infovar)].alpha,1);
+			set(layer[get(infovar)].enabled,true);
+			set(layer[get(infovar)].displayed,true);
+			
+			
+		);
+		
+		
+		if(stagewidth LE 1010,
+			calc(fix_scale_value,stagewidth/1010);
+			roundval(fix_scale_value,2);
+			mul(fix_scale_value,.6);
+			set(layer[infoslide3].scale,get(fix_scale_value));
+			set(layer[infoslide2].scale,get(fix_scale_value));
+			set(layer[infoslide1].scale,get(fix_scale_value));
+			updatescreen();
+		);
+		
+		<!-- height is 630 scaled to 6, remember mul6
+		-->
+		if(stageheight LE stagewidth,
+			calc(checkvalue,stageheight*0.1 + 630);
+			if(stageheight LE checkvalue,
+				calc(fix_scale_value,stageheight/630);
+				roundval(fix_scale_value,2);
+				mul(fix_scale_value,.6);
+				
+				set(layer[infoslide3].scale,get(fix_scale_value));
+				set(layer[infoslide2].scale,get(fix_scale_value));
+				set(layer[infoslide1].scale,get(fix_scale_value));
+				
+				set(layer[infoslide1].y,0);
+				set(layer[infoslide2].y,0);
+				set(layer[infoslide3].y,0);
+			);
+		);
+	</action>
+	
+	<action name="force_infodisplay" scope="local" args="infoslidenumber">
+		calc(infovar,'infoslide' + infoslidenumber);
+		tween(layer[get(infovar)].alpha,1);
+		set(layer[get(infovar)].enabled,true);
+		set(layer[get(infovar)].displayed,true);
+	</action>
+	
+	<action name="switch_infoslide" scope="local" args="infoslide_n">		
+		if(infoslide_n == 1,
+			set(layer[infoslide2].enabled,false);tween(layer[infoslide2].alpha,0,.1);
+			set(layer[infoslide3].enabled,false);tween(layer[infoslide3].alpha,0,.1);
+			
+			set(layer[infoslide1].enabled,true); tween(layer[infoslide1].alpha,1);
+		);
+		
+		if(infoslide_n == 2,
+			set(layer[infoslide1].enabled,false);tween(layer[infoslide1].alpha,0,.1);
+			set(layer[infoslide3].enabled,false);tween(layer[infoslide3].alpha,0,.1);
+			
+			set(layer[infoslide2].enabled,true); tween(layer[infoslide2].alpha,1);
+		);
+		
+		if(infoslide_n == 3,
+			set(layer[infoslide1].enabled,false);tween(layer[infoslide1].alpha,0,.1);
+			set(layer[infoslide2].enabled,false);tween(layer[infoslide2].alpha,0,.1);
+			
+			set(layer[infoslide3].enabled,true); tween(layer[infoslide3].alpha,1);
+		);
+	</action>
+	
+	<layer name="infoslide1" type="image" url="infoslide1.png" keep="true" align="centered" scale="0.6" alpha="0" enabled="false" y="-10%"
+	maskchildren="true" scalechildren="true" handcursor="false" zorder="3">
+		
+		<layer name="Close_Button" type="image" url="%VIEWER%/icons/closeoff.png"
+		onover="set(layer[Close_Button].url,%VIEWER%/icons/closeon.png)"
+		onout="set(layer[Close_Button].url,%VIEWER%/icons/closeoff.png)"
+		onclick="remove_slides_images();set(layer[Close_Button].url,%VIEWER%/icons/closeoff.png);"
+		parent="infoslide1" 
+		align="righttop"
+		x="5%" y="5%" scale="0.05"/>
+		
+		<layer name="Next_Button" type="image" url="%VIEWER%/icons/nextoff.png"
+		onover="set(layer[Next_Button].url,%VIEWER%/icons/nexton.png)"
+		onout="set(layer[Next_Button].url,%VIEWER%/icons/nextoff.png)"
+		onclick="switch_infoslide(2);set(layer[Next_Button].url,%VIEWER%/icons/nextoff.png);"
+		parent="infoslide1" 
+		align="centerright"
+		x="2%" y="0" scale="0.05"/>
+		
+	</layer>
+	
+	<layer name="infoslide2" type="image" url="infoslide2.png" keep="true" align="centered" scale="0.6" alpha="0" enabled="false" y="-10%"
+	maskchildren="true" scalechildren="true" handcursor="false" zorder="3">
+		
+		<layer name="Close_Button2" type="image" url="%VIEWER%/icons/closeoff.png"
+		onover="set(layer[Close_Button2].url,%VIEWER%/icons/closeon.png)"
+		onout="set(layer[Close_Button2].url,%VIEWER%/icons/closeoff.png)"
+		onclick="remove_slides_images();set(layer[Close_Button2].url,%VIEWER%/icons/closeoff.png);"
+		parent="infoslide2" 
+		align="righttop"
+		x="5%" y="5%" scale="0.05"/>
+		
+		<layer name="Prev_Button" type="image" url="%VIEWER%/icons/prevoff.png"
+		onover="set(layer[Prev_Button].url,%VIEWER%/icons/prevon.png)"
+		onout="set(layer[Prev_Button].url,%VIEWER%/icons/prevoff.png)"
+		onclick="switch_infoslide(1);set(layer[Prev_Button].url,%VIEWER%/icons/prevoff.png);"
+		parent="infoslide2" 
+		align="centerleft"
+		x="2%" y="0" scale="0.05"/>
+		
+	</layer>
+	
+	<action name="easy_rescale" scope="local" args="layername, scalar">
+		<!-- ATTEMPS TO EASILY RESCALE OBJECTS, MODIFYING SCALE SETTING, SO THAT IT KEEPS ASPECT RATIO 
+		IF NO ORIGINAL_SCALE IS GIVEN, THEN OBJECT IS modified to fit the whole screen
+		
+		REMEMBER, AS LONG AS YOU DON'T MESS THE CROP VALUE, IMAGEWIDTH AND IMAGEHEIGHT ATTRIBUTES ARE CORRECT. 
+		-->
+		<!--
+		if(original_scale === null,
+			copy(base_scale, layer[get(layername)].scale);
+			,
+			copy(base_scale, original_scale);
+		);
+		-->
+		if(layer[get(layername)].realwidth === null,
+			copy(base_width,layer[get(layername)].imagewidth);
+			,
+			copy(base_width,layer[get(layername)].realwidth);
+		);
+		if(layer[get(layername)].realheight === null,
+			copy(base_height,layer[get(layername)].imageheight);
+			,
+			copy(base_height,layer[get(layername)].realheight);
+		);
+		<!--if (base_width GT 0 AND base_height GT 0, -->
+		
+		
+		if(base_width GT base_height,
+			<!-- horizontal -->
+			calc(scale_fix_value,(stagewidth/base_width) * scalar);
+			roundval(scale_fix_value,2);
+			set(layer[get(layername)].scale,get(scale_fix_value));
+			,
+			<!-- vertical -->
+				
+			calc(scale_fix_value,stageheight/base_height * scalar);
+			set(layer[get(layername)].scale,get(scale_fix_value));
+		);
+		
+		
+	</action>
+	
+	<!-- RESPONSIVE 
+		 RESPONSIVE
+		 EXCEPTIONS -->
+	
+	<events name="resizing" keep="true" onresize="onresize_action();"  />
+	<action name="onresize_action" scope="local">
+		mobile_orientation();
+		infoslide_resize_query();
+		
+		if(device.handheld == true,
+			if(stagewidth LT stageheight,
+			<!-- PORTRAIT -->
+			easy_rescale(map, 0.5);
+			,
+			<!-- LANDSCAPE -->
+			easy_rescale(map, 0.8);
+			);
+			
+		);
+	</action>
+	
+	<action name="mobile_orientation" >
+		if (device.handheld == true,
+			if(stagewidth LT stageheight,
+				<!-- PORTRAIT -->
+				set(layer[Map_Toggle].x,4%);
+				set(layer[Map_Toggle].y,20%);
+				,
+				<!-- LANDSCAPE -->
+				set(layer[map_toggle].x,50)
+				set(layer[map_toggle].y,50)
+			);
+			
+			if(stagewidth LE 300,
+				set(layer[OverlayMenu].x, 5);,
+			stagewidth LE 326,
+				set(layer[OverlayMenu].x,25);
+			,
+				set(layer[OverlayMenu].x,50);
+			);
+		);
+	</action>
+	
+	
+	<action name="infoslide_resize_query" scope="local">
+		if(stagewidth LE 1010 OR stageheight LE 630,
+			calc(scale_fix,min(stagewidth/1010,stageheight/630 )*0.6);
+			roundval(scale_fix,2);
+			set(layer[infoslide1].scale,get(scale_fix));
+			,
+			set(layer[infoslide1].scale,0.6);
+		);
+	</action>
+	
+	
+	
+	
+	<!-- RESPONSIVE 
+		 RESPONSIVE
+		 EXCEPTIONS 
+	ENDS HERE-->
+	
+	
+	
+	
+	
+	<!-- COPY DEFAULT VTOUR SKIN DEFAULTS DEPENDENCIES -->
+	
+	<action name="skin_hotspotstyle_click" scope="local">
+		if(caller.linkedscene,
+			copy(hs_linkedscene, caller.linkedscene);
+			if(caller.linkedscene_lookat, txtsplit(caller.linkedscene_lookat, ',', hs_lookat_h, hs_lookat_v, hs_lookat_fov); );
+			set(caller.enabled, false);
+			skin_hidetooltips();
+			tween(caller.depth|caller.alpha|caller.oy|caller.rx, 4000|0.0|-50|-60, 0.5, default,
+				skin_loadscene(get(hs_linkedscene), get(skin_settings.loadscene_blend));
+				if(hs_lookat_h !== null, skin_lookat(get(hs_lookat_h), get(hs_lookat_v), get(hs_lookat_fov)); );
+			);
+		);
+	</action>
+	
+	<style name="skin_hotspotstyle" url="skin/vtourskin_hotspot.png" edge="top" distorted="true"
+	       tooltip=""
+	       linkedscene=""
+	       linkedscene_lookat=""
+	       onclick="skin_hotspotstyle_click();"
+	       depth="1000"
+	       scale="0.5"
+	       onover="tween(scale,0.55);"
+	       onout="tween(scale,0.5);"
+	       onloaded="skin_hotspotstyle_setup();"
+	       />
+		   
+	<action name="skin_hotspotstyle_setup" scope="local">
+		if(caller.linkedscene AND skin_settings.tooltips_hotspots,
+			copy(caller.tooltip, scene[get(caller.linkedscene)].title);
+			caller.loadstyle(skin_tooltips);
+		);
+	</action>
+	
+	<action name="skin_loadscene" scope="local" args="newscenenameorindex, blendmode">
+		if(webvr.isenabled AND scene.count GT 1,
+			set(hotspot[skin_webvr_prev_scene].visible, false);
+			set(hotspot[skin_webvr_next_scene].visible, false);
+		);
+
+		calc(layer[skin_thumbborder].parent, 'skin_thumb_' + scene[get(newscenenameorindex)].index);
+		loadscene(get(scene[get(newscenenameorindex)].name), null, get(skin_settings.loadscene_flags), get(blendmode));
+	</action>
+	
+	<action name="skin_hidetooltips">
+		set(layer[skin_tooltip], alpha=0.0, visible=false);
+	</action>
+	
+	<include url="%VIEWER%/plugins/webvr.xml" devices="html5" />
+	
+	<!-- overwrite some settings from the webvr.xml for functionality -->
+	<plugin name="webvr" keep="true" devices="html5.and.webgl"
+	        onavailable=""/>
+	<!-- DEPENDENCIES END HERE -->
+</krpano>
