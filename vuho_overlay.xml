@@ -3,14 +3,17 @@
 	<action name="VUHO_OVERLAY_ONSTART" autorun="onstart" >
 		if(device.handheld == true,
 			disablemap();
-			set(layer[OverlayMenu].scale, 0.12);
+			<!-- set(layer[OverlayMenu].scale, 0.17); -->
 			easy_rescale(map);
 			
 			set(layer[map].align,center);
 			set(layer[map].y,-5%);
 			set(layer[map].x,0);
 			
-			onresize_action();
+			set(layer[infoslide1].y,0%);
+			set(layer[infoslide2].y,0%);
+
+			delayedcall(3,onresize_action(););
 		);
 		
 		removelayer(webvr_enterbutton); <!-- Remove EnterVR button attop -->
@@ -431,7 +434,7 @@
 	</action>
 	
 	<layer name="infoslide1" type="image" url="infoslide1.png" keep="true" align="centered" scale="0.6" alpha="0" enabled="false" y="-10%"
-	maskchildren="true" scalechildren="true" handcursor="false" zorder="3">
+	maskchildren="true" scalechildren="true" handcursor="false" zorder="5">
 		
 		<layer name="Close_Button" type="image" url="%VIEWER%/icons/closeoff.png"
 		onover="set(layer[Close_Button].url,%VIEWER%/icons/closeon.png)"
@@ -452,7 +455,7 @@
 	</layer>
 	
 	<layer name="infoslide2" type="image" url="infoslide2.png" keep="true" align="centered" scale="0.6" alpha="0" enabled="false" y="-10%"
-	maskchildren="true" scalechildren="true" handcursor="false" zorder="3">
+	maskchildren="true" scalechildren="true" handcursor="false" zorder="5">
 		
 		<layer name="Close_Button2" type="image" url="%VIEWER%/icons/closeoff.png"
 		onover="set(layer[Close_Button2].url,%VIEWER%/icons/closeon.png)"
@@ -525,10 +528,10 @@
 		if(device.handheld == true,
 			if(stagewidth LT stageheight,
 			<!-- PORTRAIT -->
-			easy_rescale(map, 0.5);
+			easy_rescale(map, 0.6);
 			,
 			<!-- LANDSCAPE -->
-			easy_rescale(map, 0.8);
+			easy_rescale(map, 0.7);
 			);
 			
 		);
@@ -540,10 +543,18 @@
 				<!-- PORTRAIT -->
 				set(layer[Map_Toggle].x,4%);
 				set(layer[Map_Toggle].y,20%);
+				set(layer[FurnitureToggle].x,4%);
+				set(layer[FurnitureToggle].y,5%);
+				
+				set(layer[OverlayMenu].scale, 0.12);
 				,
 				<!-- LANDSCAPE -->
-				set(layer[map_toggle].x,50)
-				set(layer[map_toggle].y,50)
+				set(layer[map_toggle].x,50);
+				set(layer[map_toggle].y,50);
+				set(layer[FurnitureToggle].x,150);
+				set(layer[FurnitureToggle].y,50);
+				
+				set(layer[OverlayMenu].scale, 0.17);
 			);
 			
 			if(stagewidth LE 300,
@@ -562,8 +573,10 @@
 			calc(scale_fix,min(stagewidth/1010,stageheight/630 )*0.6);
 			roundval(scale_fix,2);
 			set(layer[infoslide1].scale,get(scale_fix));
+			set(layer[infoslide2].scale,get(scale_fix));
 			,
 			set(layer[infoslide1].scale,0.6);
+			set(layer[infoslide2].scale,0.6);
 		);
 	</action>
 	

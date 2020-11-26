@@ -197,49 +197,6 @@
 		visible="true"
 		/>
 	
-	<events name="orientation" keep="true" onresize="Orientation();"  />
-	
-	<action name="Orientation">
-	if(device.handheld == true,
-		if(stagewidth LT stageheight,
-				<!-- PORTRAIT -->
-				if(stagewidth LE 1010,
-					calc(fix_scale_value,stagewidth/1010);
-					roundval(fix_scale_value,2)
-					mul(fix_scale_value,.6);
-					set(layer[infoslide3].scale,get(fix_scale_value));
-					set(layer[infoslide2].scale,get(fix_scale_value));
-					set(layer[infoslide1].scale,get(fix_scale_value));
-					,
-					set(layer[infoslide1].scale,1);
-					set(layer[infoslide2].scale,1);
-					set(layer[infoslide3].scale,1);
-				);
-				
-				set(layer[map].scale,0.11);
-				set(layer[Map_Toggle].y,20%);
-				,
-				
-				<!-- LANDSCAPE -->
-				<!-- width and height IS updated. -->
-				if(stageheight LE 630,
-					calc(fix_scale_value,stageheight/630);
-					roundval(fix_scale_value,2);
-					mul(fix_scale_value,.6);
-					set(layer[infoslide3].scale,get(fix_scale_value));
-					set(layer[infoslide2].scale,get(fix_scale_value));
-					set(layer[infoslide1].scale,get(fix_scale_value));
-					,
-					set(layer[infoslide1].scale,1);
-					set(layer[infoslide2].scale,1);
-					set(layer[infoslide3].scale,1);
-				);
-				
-				set(layer[map].scale,0.07);
-				set(layer[Map_Toggle].y,5%);
-		);
-	);
-	</action>
 	
 	<action name="smart_reload_current_scene" scope="local">
 		copy(scenename, xml.scene);
@@ -259,6 +216,23 @@
 		set(layer[variableHolder].state,get(amuebnot));
 		smart_reload_current_scene();
 	</action>
+	
+	<action name="toggle_state" scope="local" >
+		if(layer[variableHolder].state == 'gris',
+			change_state(amueblado);
+			set(layer[FurnitureToggle].url,%ROOT%/icons/acabados_on.png);
+			,
+			change_state(gris);
+			set(layer[FurnitureToggle].url,%ROOT%/icons/acabados_off.png);
+		);
+	</action>
+	
+	<layer name="FurnitureToggle" y="50" x="150" url="%ROOT%/icons/acabados_on.png" 
+	scale="0.157"
+	align="leftbottom"
+	handcursor="true"
+	onclick="toggle_state"
+	keep="true"/>
 	
 	
 	<action name="mapspot_onclick" scope="local">
@@ -285,6 +259,7 @@
 	
 	
 	<layer name="Map_Toggle" type="image" keep="true" url="%VIEWER%/icons/mapoff.png" scale="0.05" align="leftbottom" x="50" y="50" onclick="toggle_map();"
+	zorder="3"
 	alpha="1" enabled="true"/>
 	
 	<action name="toggle_map" scope="local">
@@ -310,27 +285,6 @@
 		
 		
 		set(layer[Map_Toggle].url,%VIEWER%/icons/mapoff.png);
-	</action>
-	
-	<action name="mobile_map_exceptions" scope="local" autorun="onstart">
-		if(device.handheld == true,
-			disablemap(); <!-- disable on start -->
-			set(layer[Map_Toggle].x,4%);
-			set(layer[Map_Toggle].y,20%);
-			
-			set(layer[map].align,center);
-			set(layer[map].y,-15%);
-			set(layer[map].x,0);
-			,
-			enablemap(); <!-- enable on start -->
-		);
-		
-		
-	</action>
-	
-	
-	
-	
-	
+	</action>	
 	
 </krpano>
