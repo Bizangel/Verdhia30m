@@ -97,9 +97,9 @@
 		trace(" ",%1);
 	</action>
 	
-	<events onkeydown="debugaction();" if="1"/>
+	<events onkeydown="debugaction();" if="0"/>
 	
-	<action name="debugaction" if="1" >
+	<action name="debugaction" if="0" >
 		if(keycode == 89, <!-- Y KEY -->
 			change_state(amueblado);
 		);
