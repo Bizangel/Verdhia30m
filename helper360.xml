@@ -221,9 +221,11 @@
 		if(layer[variableHolder].state == 'gris',
 			change_state(amueblado);
 			set(layer[FurnitureToggle].url,%ROOT%/icons/acabados_on.png);
+			set(layer[map].url,%ROOT%/map.png);
 			,
 			change_state(gris);
 			set(layer[FurnitureToggle].url,%ROOT%/icons/acabados_off.png);
+			set(layer[map].url,%ROOT%/map_gray.png);
 		);
 	</action>
 	
@@ -258,7 +260,7 @@
  fillcolor="0x7F5F3F" linewidth="1.0" linecolor="0xE0E0A0" linealpha="0.5" editmode="true" />
 	
 	
-	<layer name="Map_Toggle" type="image" keep="true" url="%VIEWER%/icons/mapoff.png" scale="0.05" align="leftbottom" x="50" y="50" onclick="toggle_map();"
+	<layer name="Map_Toggle" type="image" keep="true" url="%VIEWER%/icons/mapon.png" scale="0.05" align="leftbottom" x="50" y="50" onclick="toggle_map();"
 	zorder="3"
 	alpha="1" enabled="true"/>
 	
